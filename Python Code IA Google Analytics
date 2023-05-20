@@ -1,0 +1,63 @@
+import os
+import datetime
+import pymysql
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+
+# Configurações do Google Analytics
+SCOPES = ['https://www.googleapis.com/auth/analytics.readonly']
+KEY_FILE_LOCATION = 'caminho/para/seu/arquivo_de_chave.json'
+VIEW_ID = 'sua_view_id'
+
+# Configurações do banco de dados
+DB_HOST = 'seu_host'
+DB_USER = 'seu_usuario'
+DB_PASSWORD = 'sua_senha'
+DB_NAME = 'seu_banco_de_dados'
+
+# Cria uma conexão com o banco de dados
+db = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
+cursor = db.cursor()
+
+# Autenticação no Google Analytics
+credentials = service_account.Credentials.from_service_account_file(KEY_FILE_LOCATION, scopes=SCOPES)
+analytics = build('analyticsreporting', 'v4', credentials=credentials)
+
+# Função para obter dados do Google Analytics
+def get_analytics_data(start_date, end_date):
+    response = analytics.reports().batchGet(
+        body={
+            'reportRequests': [
+                {
+                    'viewId': VIEW_ID,
+                    'dateRanges': [{'startDate': start_date, 'endDate': end_date}],
+                    'metrics': [{'expression': 'ga:users'}, {'expression': 'ga:sessions'}],
+                    'dimensions': [{'name': 'ga:date'}]
+                }
+            ]
+        }
+    ).execute()
+
+    return response['reports'][0]['data']['rows']
+
+# Obtém a data atual
+end_date = datetime.datetime.now().strftime('%Y-%m-%d')
+
+# Define a data de início para 30 dias atrás
+start_date = (datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
+
+# Obtém os dados do Google Analytics
+data_rows = get_analytics_data(start_date, end_date)
+
+# Insere os dados no banco de dados
+for row in data_rows:
+    date = row['dimensions'][0]
+    users = row['metrics'][0]['values'][0]
+    sessions = row['metrics'][0]['values'][1]
+
+    sql = "INSERT INTO analytics_data (date, users, sessions) VALUES (%s, %s, %s)"
+    cursor.execute(sql, (date, users, sessions))
+    db.commit()
+
+# Fecha a conexão com o banco de dados
+db.close()
