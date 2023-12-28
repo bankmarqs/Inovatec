@@ -1,0 +1,1 @@
+Este foi meu primeiro Projeto de inovação tecnológica, fiz a parte de IA com APIs do google analitycs, para analise de dados usados no site que foi criado, foi dificíl para alguém leigo, pelo período curto de se fazer (1 mês) mas consegui fazer.
